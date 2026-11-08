@@ -402,3 +402,72 @@ with onglet4:
                     f"{accord(baisses, 'recule', 'reculent')}. {haut}, {bas}, et sa surface cultivée varie de "
                     f"{fr_signe(pire['variation_surface'])} % sur la même période. {total}"
                 )
+
+
+# ---- 5. Production par habitant
+with onglet5:
+    st.subheader("Quels départements produisent le plus par habitant ?")
+    n_annees = df["annee"].nunique()
+    par_habitant = (
+        df.groupby("departement")
+        .agg(production_t=("production_t", "sum"), population=("population", "first"))
+        .reset_index()
+    )
+    par_habitant["kg_par_habitant_an"] = par_habitant["production_t"] * 1000 / par_habitant["population"] / n_annees
+    par_habitant["rang_tonnes"] = par_habitant["production_t"].rank(ascending=False).astype(int)
+    par_habitant["rang_habitant"] = par_habitant["kg_par_habitant_an"].rank(ascending=False).astype(int)
+
+    g3, g4 = st.columns([3, 2])
+    g3.altair_chart(
+        barres(
+            par_habitant, "kg_par_habitant_an", "departement", "Production par habitant et par an",
+            "kg par habitant et par an", VERT, lambda v: fr(v), hauteur=360,
+        ),
+    )
+    g4.markdown("**Détail par département**")
+    g4.dataframe(
+        par_habitant.sort_values("kg_par_habitant_an", ascending=False).rename(
+            columns={
+                "departement": "Département",
+                "production_t": "Production (t)",
+                "population": "Population",
+                "kg_par_habitant_an": "kg / hab. / an",
+                "rang_tonnes": "Rang en tonnes",
+                "rang_habitant": "Rang par habitant",
+            }
+        ).round({"kg / hab. / an": 1}),
+        hide_index=True,
+    )
+
+    classe = par_habitant.sort_values("kg_par_habitant_an", ascending=False)
+    if len(classe) == 1:
+        seul = classe.iloc[0]
+        st.info(
+            f"**Ce qu'on en conclut :** **{seul['departement']}** produit {fr(seul['kg_par_habitant_an'])} kg par "
+            "habitant et par an. Sélectionnez plusieurs départements pour les comparer."
+        )
+    else:
+        nb_tete = min(3, len(classe) - 1)
+        tete = [f"**{r.departement}** ({fr(r.kg_par_habitant_an)} kg)" for r in classe.head(nb_tete).itertuples()]
+        dernier = classe.iloc[-1]
+        premier_en_tonnes = par_habitant.sort_values("production_t", ascending=False).iloc[0]
+        if premier_en_tonnes["rang_habitant"] == 1:
+            remarque = f"**{premier_en_tonnes['departement']}**, premier en tonnes, est aussi premier par habitant."
+        else:
+            remarque = (
+                f"**{premier_en_tonnes['departement']}**, premier en tonnes ({fr(premier_en_tonnes['production_t'])} t), "
+                f"n'est que {int(premier_en_tonnes['rang_habitant'])}e par habitant."
+            )
+        if (par_habitant["rang_tonnes"] == par_habitant["rang_habitant"]).all():
+            verdict = "Les deux classements sont identiques."
+        else:
+            verdict = "Le classement en tonnes et celui par habitant ne disent donc pas la même chose."
+        st.info(
+            f"**Ce qu'on en conclut :** {liste_et(tete)} {accord(nb_tete, 'produit', 'produisent')} le plus par "
+            f"habitant et par an, et **{dernier['departement']}** ferme la marche avec "
+            f"{fr(dernier['kg_par_habitant_an'])} kg. {remarque} {verdict}"
+        )
+    st.caption(
+        "Production moyenne par an divisée par la population du département (une seule valeur de population, "
+        "pas de série annuelle). La production n'est pas la consommation : les échanges entre départements ne sont pas mesurés."
+    )
