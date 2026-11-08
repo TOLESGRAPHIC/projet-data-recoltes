@@ -1,9 +1,12 @@
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 DOSSIER = Path(__file__).parent / "donnees"
+
+VERT, BLEU, ROUGE = "#2E7D32", "#1565C0", "#C62828"
 
 st.set_page_config(page_title="Les récoltes agricoles", page_icon="🌾", layout="wide")
 
@@ -87,3 +90,139 @@ k4.metric("Culture n°1 en tonnes", culture_n1)
 k4.caption(f"{fr(part_n1, 1)} % de la production sélectionnée")
 
 st.write("")
+
+def fr_signe(x, decimales=1):
+    """Nombre à la française avec son signe : +19,1 ou −32,2."""
+    signe = "+" if x > 0 else "−" if x < 0 else ""
+    return signe + fr(abs(x), decimales)
+
+
+def liste_et(elements):
+    """['a', 'b', 'c'] devient 'a, b et c'."""
+    if len(elements) <= 1:
+        return "".join(elements)
+    return ", ".join(elements[:-1]) + " et " + elements[-1]
+
+
+def pluriel(n, mot):
+    return f"{n} {mot}" + ("s" if n > 1 else "")
+
+
+def accord(n, singulier, pluriel_):
+    """Choisit la forme du verbe : 0 ou 1 → singulier, plus → pluriel."""
+    return singulier if n <= 1 else pluriel_
+
+
+def montant(valeur_htg):
+    """Une somme en gourdes, en milliards ou en millions selon sa taille."""
+    if valeur_htg >= 1e9:
+        return f"{fr(valeur_htg / 1e9, 1)} milliards de gourdes"
+    return f"{fr(valeur_htg / 1e6, 1)} millions de gourdes"
+
+
+def pour_altair(donnees):
+    """Copie du tableau avec les colonnes de texte en type « object », lu sans problème par Altair."""
+    d = donnees.reset_index(drop=True).copy()
+    colonnes_texte = d.select_dtypes(exclude="number").columns
+    return d.astype({colonne: "object" for colonne in colonnes_texte})
+
+
+def barres(donnees, valeur, categorie, titre, titre_axe, couleur, formater, hauteur=300, bicolore=False):
+    """Barres horizontales triées, avec la valeur écrite au bout de chaque barre."""
+    d = pour_altair(donnees)
+    d["etiquette"] = d[valeur].map(formater)
+    mini, maxi = float(d[valeur].min()), float(d[valeur].max())
+    bas = mini * 1.3 if mini < 0 else 0.0
+    haut = maxi * 1.2 if maxi > 0 else 0.0
+    if haut == bas:
+        haut = bas + 1.0
+
+    base = alt.Chart(d).encode(
+        x=alt.X(f"{valeur}:Q", title=titre_axe, scale=alt.Scale(domain=[bas, haut])),
+        y=alt.Y(f"{categorie}:N", sort="-x", title=None),
+    )
+    infobulle = [
+        alt.Tooltip(f"{categorie}:N", title="Élément"),
+        alt.Tooltip("etiquette:N", title=titre_axe),
+    ]
+    if bicolore:
+        signe = alt.condition(f"datum.{valeur} >= 0", alt.value(VERT), alt.value(ROUGE))
+        rectangles = base.mark_bar(cornerRadiusEnd=3).encode(color=signe, tooltip=infobulle)
+    else:
+        rectangles = base.mark_bar(color=couleur, cornerRadiusEnd=3).encode(tooltip=infobulle)
+    texte_positif = (
+        base.mark_text(align="left", dx=4).encode(text="etiquette:N").transform_filter(f"datum.{valeur} >= 0")
+    )
+    texte_negatif = (
+        base.mark_text(align="right", dx=-4).encode(text="etiquette:N").transform_filter(f"datum.{valeur} < 0")
+    )
+    return (rectangles + texte_positif + texte_negatif).properties(title=titre, height=hauteur)
+
+
+# ---------------------------------------------------------------- Onglets
+onglet1, onglet2, onglet3, onglet4, onglet5 = st.tabs(
+    [
+        "1 · Poids des cultures",
+        "2 · Rendements",
+        "3 · Effet de la pluie",
+        "4 · Évolution",
+        "5 · Production par habitant",
+    ]
+)
+
+# ---- 1. Quelles cultures pèsent le plus ?
+with onglet1:
+    st.subheader("Quelles cultures pèsent le plus, en tonnes puis en valeur ?")
+    classement = df.groupby("culture")[["production_t", "valeur_htg"]].sum()
+    classement["part_t"] = classement["production_t"] / classement["production_t"].sum() * 100
+    classement["part_v"] = classement["valeur_htg"] / classement["valeur_htg"].sum() * 100
+    classement = classement.reset_index()
+    classement["valeur_mds"] = classement["valeur_htg"] / 1e9
+
+    g1, g2 = st.columns(2)
+    g1.altair_chart(
+        barres(classement, "production_t", "culture", "Production en tonnes", "Production (t)", VERT, lambda v: fr(v)),
+    )
+    g2.altair_chart(
+        barres(
+            classement, "valeur_mds", "culture", "Valeur en milliards de gourdes", "Valeur (milliards de gourdes)",
+            BLEU, lambda v: fr(v, 1),
+        ),
+    )
+
+    ordre_t = classement.sort_values("production_t", ascending=False)["culture"].tolist()
+    ordre_v = classement.sort_values("valeur_htg", ascending=False)["culture"].tolist()
+    t1, v1 = ordre_t[0], ordre_v[0]
+    ligne = classement.set_index("culture")
+    if len(ordre_t) == 1:
+        verdict = ""
+    elif ordre_t == ordre_v:
+        verdict = "Le classement ne change pas."
+    elif t1 != v1:
+        verdict = "Le classement change, et la première place change aussi."
+    else:
+        verdict = "La première place ne change pas, mais le reste du classement bouge."
+    rang_t = {c: i + 1 for i, c in enumerate(ordre_t)}
+    rang_v = {c: i + 1 for i, c in enumerate(ordre_v)}
+    gains = {c: rang_t[c] - rang_v[c] for c in ordre_t}
+    meilleur_gain = max(gains, key=gains.get)
+    complement = ""
+    if gains[meilleur_gain] > 0:
+        prix = df.loc[df["culture"] == meilleur_gain, "prix_htg_kg"].iloc[0]
+        complement = (
+            f" **{meilleur_gain}** gagne {pluriel(gains[meilleur_gain], 'place')} en valeur "
+            f"grâce à son prix ({fr(prix)} gourdes le kg)."
+        )
+    if len(ordre_t) == 1:
+        st.info(
+            f"**Ce qu'on en conclut :** **{t1}** est la seule culture sélectionnée : "
+            f"{fr(ligne.loc[t1, 'production_t'])} t, soit {montant(ligne.loc[t1, 'valeur_htg'])}. "
+            "Sélectionnez plusieurs cultures pour comparer leur poids."
+        )
+    else:
+        st.info(
+            f"**Ce qu'on en conclut :** en tonnes, **{t1}** domine ({fr(ligne.loc[t1, 'production_t'])} t, "
+            f"{fr(ligne.loc[t1, 'part_t'], 1)} % du total) ; en valeur, c'est **{v1}** "
+            f"({montant(ligne.loc[v1, 'valeur_htg'])}, {fr(ligne.loc[v1, 'part_v'], 1)} % du total). "
+            f"{verdict}{complement}"
+        )
