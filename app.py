@@ -226,3 +226,49 @@ with onglet1:
             f"({montant(ligne.loc[v1, 'valeur_htg'])}, {fr(ligne.loc[v1, 'part_v'], 1)} % du total). "
             f"{verdict}{complement}"
         )
+
+# ---- 2. Où les rendements sont-ils les meilleurs ?
+with onglet2:
+    st.subheader("Où les rendements (tonnes par hectare) sont-ils les meilleurs, culture par culture ?")
+    rendements = df.groupby(["departement", "culture"])[["production_t", "surface_ha"]].sum().reset_index()
+    rendements["rendement"] = rendements["production_t"] / rendements["surface_ha"]
+    rendements["ecart"] = rendements["rendement"] / rendements.groupby("culture")["rendement"].transform("mean")
+    rendements["texte"] = rendements["rendement"].map(lambda v: fr(v, 2))
+    d = pour_altair(rendements)
+
+    base = alt.Chart(d).encode(
+        x=alt.X("culture:N", title=None, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("departement:N", title=None),
+    )
+    cases = base.mark_rect().encode(
+        color=alt.Color(
+            "ecart:Q",
+            scale=alt.Scale(scheme="redyellowgreen", domain=[0.7, 1.3], clamp=True),
+            legend=alt.Legend(title="Écart à la moyenne de la culture"),
+        ),
+        tooltip=[
+            alt.Tooltip("departement:N", title="Département"),
+            alt.Tooltip("culture:N", title="Culture"),
+            alt.Tooltip("texte:N", title="Rendement (t/ha)"),
+        ],
+    )
+    chiffres = base.mark_text(fontSize=12).encode(text="texte:N")
+    st.altair_chart(
+        (cases + chiffres).properties(
+            title="Rendement (t/ha) par département et par culture", height=max(120, 38 * d["departement"].nunique())
+        ),
+    )
+    st.caption(
+        "Vert : au-dessus de la moyenne de la culture ; rouge : en dessous. Case vide : culture absente du département. "
+        "Chaque culture est comparée à elle-même, car une banane (7 t/ha) et un haricot (0,7 t/ha) n'ont pas la même échelle."
+    )
+
+    meilleurs = rendements.loc[rendements.groupby("culture")["rendement"].idxmax()].sort_values("culture")
+    phrases = [f"**{r.culture}** : {r.departement} ({fr(r.rendement, 2)} t/ha)" for r in meilleurs.itertuples()]
+    if rendements["departement"].nunique() == 1:
+        introduction = "avec un seul département sélectionné, voici ses rendements."
+    elif len(meilleurs) == 1:
+        introduction = "voici le département où cette culture rend le mieux."
+    else:
+        introduction = "les meilleurs rendements dépendent de la culture."
+    st.info(f"**Ce qu'on en conclut :** {introduction} {' ; '.join(phrases)}.")
