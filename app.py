@@ -56,5 +56,34 @@ if df.empty:
     st.warning("Aucune donnée pour ces filtres : choisissez au moins une année, un département et une culture.")
     st.stop()
 
-# Aperçu provisoire, remplacé à l'étape suivante
-st.dataframe(df.head(10), hide_index=True)
+def fr(x, decimales=0):
+    """Nombre à la française : espace pour les milliers, virgule pour les décimales."""
+    texte = f"{x:,.{decimales}f}"
+    return texte.replace(",", " ").replace(".", ",")
+
+
+# ---------------------------------------------------------------- Indicateurs
+production_totale = df["production_t"].sum()
+valeur_totale = df["valeur_htg"].sum()
+surface_totale = df["surface_ha"].sum()
+par_culture = df.groupby("culture")["production_t"].sum().sort_values(ascending=False)
+culture_n1 = par_culture.index[0]
+part_n1 = par_culture.iloc[0] / production_totale * 100
+
+k1, k2, k3, k4 = st.columns(4)
+if production_totale >= 10_000:
+    k1.metric("Production totale (milliers de tonnes)", fr(production_totale / 1000, 1))
+else:
+    k1.metric("Production totale (tonnes)", fr(production_totale))
+if valeur_totale >= 1e9:
+    k2.metric("Valeur totale (milliards de gourdes)", fr(valeur_totale / 1e9, 1))
+else:
+    k2.metric("Valeur totale (millions de gourdes)", fr(valeur_totale / 1e6, 1))
+if surface_totale >= 10_000:
+    k3.metric("Surface récoltée (milliers d'hectares)", fr(surface_totale / 1000, 1))
+else:
+    k3.metric("Surface récoltée (hectares)", fr(surface_totale))
+k4.metric("Culture n°1 en tonnes", culture_n1)
+k4.caption(f"{fr(part_n1, 1)} % de la production sélectionnée")
+
+st.write("")
