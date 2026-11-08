@@ -336,3 +336,69 @@ with onglet3:
             )
     else:
         st.info("Pas assez de points pour mesurer le lien entre la pluie et le rendement avec ces filtres.")
+
+# ---- 4. Quelles cultures progressent ou reculent ?
+with onglet4:
+    annees_presentes = sorted(int(a) for a in df["annee"].unique())
+    if len(annees_presentes) < 2:
+        st.subheader("Quelles cultures progressent ou reculent ?")
+        st.info("Sélectionnez au moins deux années dans la barre latérale pour comparer une évolution.")
+    else:
+        debut, fin = annees_presentes[0], annees_presentes[-1]
+        st.subheader(f"Quelles cultures progressent ou reculent entre {debut} et {fin} ?")
+        production = df.pivot_table(index="culture", columns="annee", values="production_t", aggfunc="sum")
+        surface = df.pivot_table(index="culture", columns="annee", values="surface_ha", aggfunc="sum")
+        evolution = pd.DataFrame(
+            {
+                "variation_production": (production[fin] / production[debut] - 1) * 100,
+                "variation_surface": (surface[fin] / surface[debut] - 1) * 100,
+            }
+        ).dropna().reset_index()
+
+        if evolution.empty:
+            st.info("Aucune culture n'est présente aux deux dates avec ces filtres.")
+        else:
+            h1, h2 = st.columns(2)
+            h1.altair_chart(
+                barres(
+                    evolution, "variation_production", "culture", f"Production : variation {debut} → {fin} (%)",
+                    "Variation de la production (%)", VERT, lambda v: fr_signe(v) + " %", bicolore=True,
+                ),
+            )
+            h2.altair_chart(
+                barres(
+                    evolution, "variation_surface", "culture", f"Surface cultivée : variation {debut} → {fin} (%)",
+                    "Variation de la surface (%)", "#78909C", lambda v: fr_signe(v) + " %", bicolore=True,
+                ),
+            )
+            tri = evolution.sort_values("variation_production")
+            pire, meilleure = tri.iloc[0], tri.iloc[-1]
+            hausses = int((evolution["variation_production"] > 0).sum())
+            baisses = int((evolution["variation_production"] < 0).sum())
+            total_debut = production[debut].sum()
+            total_fin = production[fin].sum()
+            total = (
+                f"Au total, la production passe de {fr(total_debut)} t à {fr(total_fin)} t "
+                f"({fr_signe((total_fin / total_debut - 1) * 100)} %)."
+            )
+            if len(evolution) == 1:
+                st.info(
+                    f"**Ce qu'on en conclut :** entre {debut} et {fin}, la production de **{pire['culture']}** varie de "
+                    f"{fr_signe(pire['variation_production'])} % et sa surface cultivée de "
+                    f"{fr_signe(pire['variation_surface'])} %. {total}"
+                )
+            else:
+                if meilleure["variation_production"] >= 0:
+                    haut = f"**{meilleure['culture']}** progresse le plus ({fr_signe(meilleure['variation_production'])} %)"
+                else:
+                    haut = f"**{meilleure['culture']}** recule le moins ({fr_signe(meilleure['variation_production'])} %)"
+                if pire["variation_production"] < 0:
+                    bas = f"**{pire['culture']}** recule le plus ({fr_signe(pire['variation_production'])} %)"
+                else:
+                    bas = f"**{pire['culture']}** progresse le moins ({fr_signe(pire['variation_production'])} %)"
+                st.info(
+                    f"**Ce qu'on en conclut :** entre {debut} et {fin}, {pluriel(hausses, 'culture')} "
+                    f"{accord(hausses, 'progresse', 'progressent')} et {pluriel(baisses, 'culture')} "
+                    f"{accord(baisses, 'recule', 'reculent')}. {haut}, {bas}, et sa surface cultivée varie de "
+                    f"{fr_signe(pire['variation_surface'])} % sur la même période. {total}"
+                )
