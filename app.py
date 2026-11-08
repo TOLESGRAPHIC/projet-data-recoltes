@@ -39,7 +39,7 @@ def charger():
 complet = charger()
 
 # En-tête
-st.title("🌾 Projet récoltes EKIP001")
+st.title("Projet récoltes EKIP001")
 st.markdown(
     "Une direction départementale de l'agriculture (fictive) suit les récoltes de 10 départements de 2023 à 2025, "
     "par saison et par culture, avec la pluie tombée pendant chaque saison. "
