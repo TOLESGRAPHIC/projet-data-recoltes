@@ -38,21 +38,17 @@ def charger():
 
 complet = charger()
 
-# ---------------------------------------------------------------- En-tête
-st.title("🌾 Les récoltes agricoles")
+# En-tête
+st.title("🌾 Projet récoltes EKIP001")
 st.markdown(
     "Une direction départementale de l'agriculture (fictive) suit les récoltes de 10 départements de 2023 à 2025, "
     "par saison et par culture, avec la pluie tombée pendant chaque saison. "
     "Ce tableau de bord répond au ministère : quelles cultures pèsent le plus, où les rendements sont les meilleurs, "
     "et la pluie explique-t-elle les mauvaises années ?"
 )
-st.caption(
-    "Source : direction départementale de l'agriculture (données fictives), fichiers récoltes, cultures, pluies et "
-    "départements, nettoyés et assemblés dans exploration.ipynb. "
-    "Projet final, Python pour l'analyse de données, ESIH 2026."
-)
 
-# ---------------------------------------------------------------- Filtres
+
+# Filtres
 st.sidebar.header("Filtres")
 st.sidebar.caption("Les indicateurs et tous les graphiques s'adaptent à ces choix.")
 
@@ -85,7 +81,7 @@ def fr(x, decimales=0):
     return texte.replace(",", " ").replace(".", ",")
 
 
-# ---------------------------------------------------------------- Indicateurs
+# Indicateurs
 production_totale = df["production_t"].sum()
 valeur_totale = df["valeur_htg"].sum()
 surface_totale = df["surface_ha"].sum()
@@ -179,7 +175,7 @@ def barres(donnees, valeur, categorie, titre, titre_axe, couleur, formater, haut
     return (rectangles + texte_positif + texte_negatif).properties(title=titre, height=hauteur)
 
 
-# ---------------------------------------------------------------- Onglets
+# Onglets
 onglet1, onglet2, onglet3, onglet4, onglet5 = st.tabs(
     [
         "1 · Poids des cultures",
@@ -189,8 +185,8 @@ onglet1, onglet2, onglet3, onglet4, onglet5 = st.tabs(
         "5 · Production par habitant",
     ]
 )
-
-# ---- 1. Quelles cultures pèsent le plus ?
+#Kesyon yo
+# 1. Quelles cultures pèsent le plus ?
 with onglet1:
     st.subheader("Quelles cultures pèsent le plus, en tonnes puis en valeur ?")
     classement = df.groupby("culture")[["production_t", "valeur_htg"]].sum()
@@ -247,7 +243,7 @@ with onglet1:
             f"{verdict}{complement}"
         )
 
-# ---- 2. Où les rendements sont-ils les meilleurs ?
+# 2. Où les rendements sont-ils les meilleurs ?
 with onglet2:
     st.subheader("Où les rendements (tonnes par hectare) sont-ils les meilleurs, culture par culture ?")
     rendements = df.groupby(["departement", "culture"])[["production_t", "surface_ha"]].sum().reset_index()
@@ -293,7 +289,7 @@ with onglet2:
         introduction = "les meilleurs rendements dépendent de la culture."
     st.info(f"**Ce qu'on en conclut :** {introduction} {' ; '.join(phrases)}.")
 
-# ---- 3. La pluie explique-t-elle les rendements ?
+# 3. La pluie explique-t-elle les rendements ?
 with onglet3:
     st.subheader("La pluie explique-t-elle les rendements ? Pour quelles cultures ?")
     correlations = {}
@@ -357,7 +353,7 @@ with onglet3:
     else:
         st.info("Pas assez de points pour mesurer le lien entre la pluie et le rendement avec ces filtres.")
 
-# ---- 4. Quelles cultures progressent ou reculent ?
+# 4. Quelles cultures progressent ou reculent ?
 with onglet4:
     annees_presentes = sorted(int(a) for a in df["annee"].unique())
     if len(annees_presentes) < 2:
@@ -424,7 +420,7 @@ with onglet4:
                 )
 
 
-# ---- 5. Production par habitant
+# 5. Production par habitant
 with onglet5:
     st.subheader("Quels départements produisent le plus par habitant ?")
     n_annees = df["annee"].nunique()
