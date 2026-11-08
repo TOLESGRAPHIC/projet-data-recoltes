@@ -272,3 +272,67 @@ with onglet2:
     else:
         introduction = "les meilleurs rendements dépendent de la culture."
     st.info(f"**Ce qu'on en conclut :** {introduction} {' ; '.join(phrases)}.")
+
+# ---- 3. La pluie explique-t-elle les rendements ?
+with onglet3:
+    st.subheader("La pluie explique-t-elle les rendements ? Pour quelles cultures ?")
+    correlations = {}
+    for nom, groupe in df.groupby("culture"):
+        if len(groupe) >= 3 and groupe["pluie_mm"].nunique() > 1 and groupe["rendement_t_ha"].nunique() > 1:
+            correlations[nom] = groupe["rendement_t_ha"].corr(groupe["pluie_mm"])
+
+    graphiques = []
+    for nom in sorted(df["culture"].unique()):
+        groupe = df[df["culture"] == nom].copy()
+        groupe["pluie_txt"] = groupe["pluie_mm"].map(lambda v: fr(v))
+        groupe["rendement_txt"] = groupe["rendement_t_ha"].map(lambda v: fr(v, 2))
+        titre = f"{nom} (r = {fr(correlations[nom], 2)})" if nom in correlations else nom
+        base = alt.Chart(pour_altair(groupe))
+        axe_x = alt.X("pluie_mm:Q", title="Pluie de la saison (mm)", scale=alt.Scale(zero=False))
+        axe_y = alt.Y("rendement_t_ha:Q", title="Rendement (t/ha)", scale=alt.Scale(zero=False))
+        points = base.mark_circle(size=45, opacity=0.7, color=BLEU).encode(
+            x=axe_x,
+            y=axe_y,
+            tooltip=[
+                alt.Tooltip("departement:N", title="Département"),
+                alt.Tooltip("annee:O", title="Année"),
+                alt.Tooltip("saison:N", title="Saison"),
+                alt.Tooltip("pluie_txt:N", title="Pluie (mm)"),
+                alt.Tooltip("rendement_txt:N", title="Rendement (t/ha)"),
+            ],
+        )
+        droite = (
+            base.transform_regression("pluie_mm", "rendement_t_ha")
+            .mark_line(color=ROUGE, size=2)
+            .encode(x=axe_x, y=axe_y)
+        )
+        graphiques.append(alt.layer(points, droite).properties(title=titre, width=190, height=190))
+    st.altair_chart(alt.concat(*graphiques, columns=4))
+    st.caption("Un point = un département, une saison et une année. Droite rouge : tendance. r : corrélation entre la pluie et le rendement.")
+
+    if correlations:
+        tableau = (
+            pd.DataFrame({"Culture": list(correlations), "r": list(correlations.values())})
+            .assign(part=lambda t: t["r"] ** 2 * 100)
+            .sort_values("r", ascending=False)
+        )
+        fort = tableau.iloc[0]
+        faible = tableau.iloc[-1]
+        meme_sens = int((tableau["r"] > 0).sum())
+        if len(tableau) == 1:
+            st.info(
+                f"**Ce qu'on en conclut :** pour **{fort['Culture']}**, r = {fr(fort['r'], 2)} : la pluie « explique » "
+                f"environ {fr(fort['part'])} % des écarts de rendement. "
+                "Une corrélation n'est pas une preuve de cause : le sol, les semences ou l'irrigation comptent aussi."
+            )
+        else:
+            st.info(
+                f"**Ce qu'on en conclut :** le lien entre pluie et rendement est le plus fort pour **{fort['Culture']}** "
+                f"(r = {fr(fort['r'], 2)}, la pluie « explique » environ {fr(fort['part'])} % des écarts de rendement) "
+                f"et le plus faible pour **{faible['Culture']}** (r = {fr(faible['r'], 2)}, environ {fr(faible['part'])} %). "
+                f"{pluriel(meme_sens, 'culture')} sur {len(tableau)} "
+                f"{accord(meme_sens, 'va', 'vont')} dans le même sens que la pluie. "
+                "Une corrélation n'est pas une preuve de cause : le sol, les semences ou l'irrigation comptent aussi."
+            )
+    else:
+        st.info("Pas assez de points pour mesurer le lien entre la pluie et le rendement avec ces filtres.")
