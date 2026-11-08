@@ -10,7 +10,27 @@ VERT, BLEU, ROUGE = "#2E7D32", "#1565C0", "#C62828"
 
 st.set_page_config(page_title="Les récoltes agricoles", page_icon="🌾", layout="wide")
 
-# ---------------------------------------------------------------- Données
+st.markdown(
+    """
+    <style>
+    .block-container {padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1400px;}
+    #MainMenu, footer {visibility: hidden;}
+    h1 {letter-spacing: -0.5px;}
+    [data-testid="stMetric"] {
+        background: rgba(46, 125, 50, 0.07);
+        border-left: 5px solid #2E7D32;
+        border-radius: 8px;
+        padding: 14px 18px;
+    }
+    [data-testid="stMetricLabel"] p {font-size: 0.9rem; opacity: 0.8;}
+    [data-testid="stMetricValue"] {font-weight: 700;}
+    button[data-baseweb="tab"] {font-weight: 600;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Données
 @st.cache_data
 def charger():
     return pd.read_csv(DOSSIER / "recoltes_propre.csv")
@@ -473,7 +493,7 @@ with onglet5:
     )
 
 
-# ---------------------------------------------------------------- Conclusion
+# Conclusion
 st.divider()
 st.header("Conclusion")
 st.caption("Constats sur l'ensemble des données, 2023 à 2025, sans filtre.")
