@@ -8,7 +8,7 @@ DOSSIER = Path(__file__).parent / "donnees"
 
 VERT, BLEU, ROUGE = "#2E7D32", "#1565C0", "#C62828"
 
-st.set_page_config(page_title="Les récoltes agricoles", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="EKIP001", page_icon="🌾", layout="wide")
 
 st.markdown(
     """
