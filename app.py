@@ -471,3 +471,42 @@ with onglet5:
         "Production moyenne par an divisée par la population du département (une seule valeur de population, "
         "pas de série annuelle). La production n'est pas la consommation : les échanges entre départements ne sont pas mesurés."
     )
+
+
+# ---------------------------------------------------------------- Conclusion
+st.divider()
+st.header("Conclusion")
+st.caption("Constats sur l'ensemble des données, 2023 à 2025, sans filtre.")
+c1, c2 = st.columns(2)
+with c1:
+    with st.container(border=True):
+        st.markdown("#### Ce qu'il faut retenir")
+        st.markdown(
+            "- **Igname et banane** pèsent 72 % des tonnes et 57 % de la valeur : la banane est première en tonnes "
+            "(41 %), l'igname en valeur (37 %).\n"
+            "- Le **haricot** et le **pois congo** ne pèsent que 7,5 % des tonnes, mais 18 % de la valeur grâce à leur prix.\n"
+            "- Les meilleurs rendements dépendent de la culture, et le **Nord-Est** est dernier pour cinq cultures sur sept.\n"
+            "- La pluie va dans le même sens que le rendement pour les 7 cultures (r de 0,42 à 0,76) sans l'expliquer entièrement.\n"
+            "- Le recul de l'**igname** (−32 %) vient surtout de la baisse des surfaces cultivées."
+        )
+with c2:
+    with st.container(border=True):
+        st.markdown("#### Limites des données")
+        st.markdown(
+            "- Seulement **3 années** et 2 saisons : on ne peut pas parler de tendance de long terme.\n"
+            "- Les données sont **fictives** et une corrélation ne prouve pas une cause.\n"
+            "- Le **prix** de chaque culture est constant sur toute la période, et la **population** est une valeur unique.\n"
+            "- 14 lignes sans production ont été supprimées, et le riz n'est présent que dans 5 départements.\n"
+            "- À mesurer ensuite : températures, irrigation, engrais, prix réels par année."
+        )
+
+
+# Données filtrées
+with st.expander("Voir les données filtrées"):
+    st.dataframe(df, hide_index=True)
+    st.download_button(
+        "Télécharger ces données (CSV)",
+        data=df.to_csv(index=False).encode("utf-8"),
+        file_name="recoltes_filtrees.csv",
+        mime="text/csv",
+    )
